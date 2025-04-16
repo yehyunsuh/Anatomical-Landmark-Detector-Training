@@ -1,0 +1,4 @@
+albumentations
+segmentation-models-pytorch
+six
+matplotlib
