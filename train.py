@@ -1,19 +1,40 @@
+"""
+train.py
+
+Training and evaluation pipeline for anatomical landmark segmentation using U-Net.
+
+Author: Yehyun Suh
+"""
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 from tqdm import tqdm
-
 from data_loader import dataloader
 from visualization import overlay_gt_masks, overlay_pred_masks, plot_training_results
 
 
-def train_model(args, model, DEVICE, train_loader, optimizer, loss_fn):
+def train_model(args, model, device, train_loader, optimizer, loss_fn):
+    """
+    Train the model for one epoch.
+
+    Args:
+        args (Namespace): Configuration arguments.
+        model (nn.Module): The model to train.
+        device (str): Device to use ('cuda' or 'cpu').
+        train_loader (DataLoader): Training data loader.
+        optimizer (torch.optim.Optimizer): Optimizer.
+        loss_fn (nn.Module): Loss function.
+
+    Returns:
+        float: Average training loss.
+    """
     model.train()
     total_loss = 0
 
     for images, masks, _, _ in tqdm(train_loader, desc="Training"):
-        images, masks = images.to(DEVICE), masks.to(DEVICE)
+        images, masks = images.to(device), masks.to(device)
 
         optimizer.zero_grad()
         outputs = model(images)
@@ -26,7 +47,23 @@ def train_model(args, model, DEVICE, train_loader, optimizer, loss_fn):
     return total_loss / len(train_loader)
 
 
-def evaluate_model(args, model, DEVICE, val_loader, epoch):
+def evaluate_model(args, model, device, val_loader, epoch):
+    """
+    Evaluate the model on validation data.
+
+    Args:
+        args (Namespace): Configuration arguments.
+        model (nn.Module): Trained model.
+        device (str): Device to use.
+        val_loader (DataLoader): Validation data loader.
+        epoch (int): Current epoch number.
+
+    Returns:
+        tuple:
+            - avg_loss (float): Average validation loss.
+            - dists (Tensor): Landmark prediction errors [N, C].
+            - mean_dice (float): Mean Dice score over all landmarks.
+    """
     model.eval()
     total_loss = 0
     all_pred_coords = []
@@ -35,9 +72,9 @@ def evaluate_model(args, model, DEVICE, val_loader, epoch):
 
     with torch.no_grad():
         for idx, (images, masks, _, landmarks) in enumerate(tqdm(val_loader, desc="Validation")):
-            images, masks = images.to(DEVICE), masks.to(DEVICE)
+            images, masks = images.to(device), masks.to(device)
+            outputs = model(images)
 
-            outputs = model(images)  # [B, C, H, W]
             loss = nn.BCEWithLogitsLoss()(outputs, masks)
             total_loss += loss.item()
 
@@ -47,15 +84,15 @@ def evaluate_model(args, model, DEVICE, val_loader, epoch):
             probs_flat = probs.view(B, C, -1)
             max_indices = probs_flat.argmax(dim=2)
 
-            pred_coords = torch.zeros((B, C, 2), device=DEVICE)
+            pred_coords = torch.zeros((B, C, 2), device=device)
             for b in range(B):
                 for c in range(C):
                     index = max_indices[b, c].item()
                     y, x = divmod(index, W)
-                    pred_coords[b, c] = torch.tensor([x, y], device=DEVICE)
+                    pred_coords[b, c] = torch.tensor([x, y], device=device)
 
             # Ground truth coordinates
-            gt_coords = torch.tensor(landmarks, dtype=torch.float32, device=DEVICE)
+            gt_coords = torch.tensor(landmarks, dtype=torch.float32, device=device)
             if gt_coords.ndim == 2:
                 gt_coords = gt_coords.unsqueeze(0)
 
@@ -66,7 +103,7 @@ def evaluate_model(args, model, DEVICE, val_loader, epoch):
                 overlay_gt_masks(images, masks, pred_coords, gt_coords, epoch, args.epochs, idx)
                 overlay_pred_masks(images, outputs, pred_coords, gt_coords, epoch, args.epochs, idx)
 
-            # Dice score
+            # Dice score computation
             pred_bin = (probs > 0.5).float()
             target_bin = masks
             intersection = (pred_bin * target_bin).sum(dim=(2, 3))
@@ -77,21 +114,29 @@ def evaluate_model(args, model, DEVICE, val_loader, epoch):
     avg_loss = total_loss / len(val_loader)
     all_pred_coords = torch.cat(all_pred_coords, dim=0)
     all_gt_coords = torch.cat(all_gt_coords, dim=0)
+    all_dice = torch.cat(all_dice, dim=0)
 
     dists = torch.norm(all_pred_coords - all_gt_coords, dim=2)
     mean_dist = dists.mean().item()
-
-    all_dice = torch.cat(all_dice, dim=0)
     mean_dice = all_dice.mean().item()
 
-    evaluate_model.last_dice = all_dice
+    evaluate_model.last_dice = all_dice  # Save for later use
     return avg_loss, dists, mean_dice
 
 
 def train(args, model, device):
+    """
+    Main training loop with dynamic erosion/dilation and weighted loss adjustment.
+
+    Args:
+        args (Namespace): Configuration arguments.
+        model (nn.Module): Model to train.
+        device (str): Computation device.
+    """
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     best_mean_error = float("inf")
 
+    # History tracker
     history = {
         "epoch": [],
         "train_loss": [],
@@ -103,9 +148,9 @@ def train(args, model, device):
     }
 
     for epoch in range(args.epochs):
-        print()
-        print(f"Epoch {epoch + 1}/{args.epochs}")
+        print(f"\nEpoch {epoch + 1}/{args.epochs}")
 
+        # Recalculate loss weighting every erosion_freq epochs
         if epoch % args.erosion_freq == 0:
             if epoch != 0:
                 args.dilation_iters = max(args.dilation_iters - args.erosion_iters, 1)
@@ -117,17 +162,19 @@ def train(args, model, device):
 
             train_loader, val_loader = dataloader(args)
             print(f"Loss weight: {weight_ratio:.4f}")
-        
+
         train_loss = train_model(args, model, device, train_loader, optimizer, loss_fn)
         val_loss, dists, mean_dice = evaluate_model(args, model, device, val_loader, epoch)
-
         mean_dist = dists.mean().item()
-        print(f"Train Loss: {train_loss:.4f} | Validation Loss: {val_loss:.4f} | Mean Dist: {mean_dist:.4f} | Mean Dice: {mean_dice:.4f}")
+
+        print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Mean Dist: {mean_dist:.4f} | Mean Dice: {mean_dice:.4f}")
+
         if mean_dist < best_mean_error:
             best_mean_error = mean_dist
             torch.save(model.state_dict(), "weight/best_model.pth")
             print("✅ Saved new best model!")
 
+        # Log epoch stats
         history["epoch"].append(epoch + 1)
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
@@ -138,4 +185,5 @@ def train(args, model, device):
             history["landmark_errors"][str(c)].append(dists[:, c].mean().item())
             history["dice_scores"][str(c)].append(evaluate_model.last_dice[:, c].mean().item())
 
+    # Final plot
     plot_training_results(history)
