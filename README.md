@@ -91,9 +91,16 @@ This will:
 - Save loss/accuracy plots in graph/
 
 ## 📊 Visualization
-- Green circles: Ground truth landmarks
+- Blue circles: Ground truth landmarks
 - Red circles: Predicted landmarks
 - Visual outputs are saved every 10 epochs under `visualization/Epoch{epoch}/`.
+
+<img src="https://github.com/user-attachments/assets/47d56ed5-637b-431a-bec5-9260d9762539" width="250" height="250">
+<img src="https://github.com/user-attachments/assets/55b3c460-906d-4156-8ffe-b299c3112df0" width="250" height="250">
+<img src="https://github.com/user-attachments/assets/bcadf422-0fc6-4575-b26e-dfbf0e89ba9d" width="250" height="250">
+<img src="https://github.com/user-attachments/assets/a7095213-b050-4983-a929-529cddc9f507" width="250" height="250">
+<img src="https://github.com/user-attachments/assets/d07d11b1-eef5-44d9-92c8-ace64199f723" width="250" height="250">
+<img src="https://github.com/user-attachments/assets/e66f5dd5-d98a-4a29-b5d2-ef1235b7c983" width="250" height="250">   
 
 ## 📈 Training Plots
 Plots saved in the `graph/` folder:
