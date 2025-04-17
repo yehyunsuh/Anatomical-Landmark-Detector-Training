@@ -3,8 +3,9 @@ main.py
 
 Training pipeline for anatomical landmark detection using U-Net.
 
-This script parses command-line arguments, prepares the training environment, loads the model,
-and initiates the training loop with configurable data and hyperparameters.
+This script parses command-line arguments, prepares the training environment,
+loads the model, and initiates the training loop with configurable data and
+hyperparameters.
 
 Author: Yehyun Suh  
 Date: 2025-04-15  
@@ -21,7 +22,8 @@ Example:
         --epochs 350 \
         --dilation_iters 65 \
         --erosion_freq 50 \
-        --erosion_iters 10
+        --erosion_iters 10 \
+        --gif
 """
 
 import os
@@ -50,31 +52,74 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Main script for the project.")
+    parser = argparse.ArgumentParser(
+        description="Training script for anatomical landmark segmentation with U-Net."
+    )
 
-    # Arguments for reproducibility
-    parser.add_argument('--seed', type=int, default=42, help='Seed for reproducibility')
+    # Reproducibility
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="Seed for reproducibility"
+    )
 
-    # Arguments for data
-    parser.add_argument('--train_image_dir', type=str, default='./data/train_images', help='Directory for images')
-    parser.add_argument('--label_dir', type=str, default='./data/labels', help='Directory for labels (annotations)')
-    parser.add_argument('--train_csv_file', type=str, default='train_annotation.csv', help='Name of the CSV file with image and label names')
-    parser.add_argument('--image_resize', type=int, default=512, help='Size of the images after resizing, it should be divisible by 32')
-    parser.add_argument('--n_landmarks', type=int, default=2, required=True, help='Number of landmarks in the image')
-    
-    # Arguments for training
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size for training')
-    parser.add_argument('--epochs', type=int, default=350, help='Number of epochs for training')
-    parser.add_argument('--dilation_iters', type=int, default=65, help='Number of iterations for binary dilation on masks')
-    parser.add_argument('--erosion_freq', type=int, default=50, help='Frequency of erosion during training')
-    parser.add_argument('--erosion_iters', type=int, default=10, help='Number of iterations for binary erosion on masks')
-    
+    # Data paths
+    parser.add_argument(
+        "--train_image_dir", type=str, default="./data/train_images",
+        help="Directory containing training images"
+    )
+    parser.add_argument(
+        "--label_dir", type=str, default="./data/labels",
+        help="Directory containing ground truth annotation CSVs"
+    )
+    parser.add_argument(
+        "--train_csv_file", type=str, default="train_annotation.csv",
+        help="CSV file containing training annotations"
+    )
+
+    # Image/label settings
+    parser.add_argument(
+        "--image_resize", type=int, default=512,
+        help="Target image size after resizing (must be divisible by 32)"
+    )
+    parser.add_argument(
+        "--n_landmarks", type=int, required=True,
+        help="Number of landmarks per image"
+    )
+
+    # Training parameters
+    parser.add_argument(
+        "--batch_size", type=int, default=8,
+        help="Batch size for training"
+    )
+    parser.add_argument(
+        "--epochs", type=int, default=350,
+        help="Number of training epochs"
+    )
+    parser.add_argument(
+        "--dilation_iters", type=int, default=65,
+        help="Number of iterations for binary dilation"
+    )
+    parser.add_argument(
+        "--erosion_freq", type=int, default=50,
+        help="Apply erosion every N epochs"
+    )
+    parser.add_argument(
+        "--erosion_iters", type=int, default=10,
+        help="Number of iterations for binary erosion"
+    )
+
+    # Visualization options
+    parser.add_argument(
+        "--gif", action="store_true",
+        help="Enable GIF creation of training visuals"
+    )
+
     args = parser.parse_args()
-    
-    # Fix seed for reproducibility
+
+    # Fix randomness
     customize_seed(args.seed)
 
-    # Create directories for visualization
+    # Create necessary directories
     os.makedirs("visualization", exist_ok=True)
     os.makedirs("graph", exist_ok=True)
     os.makedirs("weight", exist_ok=True)

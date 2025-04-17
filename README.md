@@ -2,9 +2,8 @@
 
 A deep learning pipeline for anatomical landmark detection using U-Net. This project enables training and visual evaluation of landmark predictions on medical images (e.g., AP hip X-rays).
 
-For collecting anatomical landmark dataset, please visit https://github.com/yehyunsuh/Anatomical-Landmark-Annotator 
-
-For testing, please visit https://github.com/yehyunsuh/Anatomical-Landmark-Detector-Testing   
+- For collecting anatomical landmark dataset, please visit https://github.com/yehyunsuh/Anatomical-Landmark-Annotator 
+- For testing, please visit https://github.com/yehyunsuh/Anatomical-Landmark-Detector-Testing   
 
 ---
 
@@ -56,16 +55,16 @@ data/train_images/
 
 Your annotation CSV should look like:
 ```
-filename,width,height,channels,x1,y1,x2,y2,...,xn,yn
-image1.jpg,1098,1120,3,123,145,245,310,...
-image2.jpg,1400,1210,3,108,132,298,294,...
+image_name,image_width,image_height,n_landmarks,landmark_1_x,landmark_1_y,...
+image1.jpg,1098,1120,3,123,145,...
+image2.jpg,1400,1210,3,108,132,...
 ```
 
 Make sure the number of (x, y) coordinate pairs matches `--n_landmarks`.
 
 ### 3. Run Training
 ```bash
-python main.py --n_landmarks 5
+python main.py --n_landmarks {number of landmarks}
 ```
 
 ### 🧩 Argument Reference
@@ -83,17 +82,20 @@ python main.py --n_landmarks 5
 | `--erosion_freq`    | Apply erosion every N epochs to increase training difficulty  | `50`                        |
 | `--erosion_iters`   | Number of erosion iterations applied during erosion phase     | `10`                        |
 | `--seed`            | Random seed for reproducibility                               | `42`                        |
+| `--gif`            | Enable GIF creation of training visuals                          |                         |
 
 This will:   
 - Train the model
-- Save the best model to weight/
-- Save overlays in visualization/
-- Save loss/accuracy plots in graph/
+- Save the best model
+- Save visualization of the training and valiationd
+- Save loss/accuracy plots
 
 ## 📊 Visualization
 - Blue circles: Ground truth landmarks
 - Red circles: Predicted landmarks
 - Visual outputs are saved every 10 epochs under `visualization/Epoch{epoch}/`.
+- You can also save gif file of the training/validation process by activating gif option, for example `python3 main.py --n_landmarks 2 --gif`
+- Visualization example 
 
 <img src="https://github.com/user-attachments/assets/47d56ed5-637b-431a-bec5-9260d9762539" width="250" height="250">
 <img src="https://github.com/user-attachments/assets/55b3c460-906d-4156-8ffe-b299c3112df0" width="250" height="250">
