@@ -31,8 +31,12 @@ def overlay_gt_masks(images, masks, pred_coords, gt_coords, epoch, total_epoch, 
         pred = pred_coords[b].cpu().numpy()
         gt = gt_coords[b].cpu().numpy()
 
-        img = images[b].cpu().permute(1, 2, 0).numpy()
-        img = ((img * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8).copy()
+        img = images[b].cpu().permute(1, 2, 0).numpy()  # (H, W, C)
+        imagenet_mean = np.array([0.485, 0.456, 0.406])
+        imagenet_std = np.array([0.229, 0.224, 0.225])
+
+        img = (img * imagenet_std + imagenet_mean) * 255.0
+        img = np.clip(img, 0, 255).astype(np.uint8).copy()
 
         # Convert multi-channel mask to binary
         gt_mask = masks[b].sum(0).cpu().numpy()
@@ -47,7 +51,7 @@ def overlay_gt_masks(images, masks, pred_coords, gt_coords, epoch, total_epoch, 
             px, py = int(pred[c, 0]), int(pred[c, 1])
             gx, gy = int(gt[c, 0]), int(gt[c, 1])
             cv2.circle(overlay, (px, py), 4, (0, 0, 255), -1)   # Red: Predicted
-            cv2.circle(overlay, (gx, gy), 4, (0, 255, 0), -1)   # Green: Ground Truth
+            cv2.circle(overlay, (gx, gy), 4, (255, 0, 0), -1)   # Green: Ground Truth
 
         # Save visualization
         if epoch % 10 == 0 or epoch == total_epoch - 1:
@@ -73,8 +77,12 @@ def overlay_pred_masks(images, outputs, pred_coords, gt_coords, epoch, total_epo
         pred = pred_coords[b].cpu().numpy()
         gt = gt_coords[b].cpu().numpy()
 
-        img = images[b].cpu().permute(1, 2, 0).numpy()
-        img = ((img * 0.5 + 0.5) * 255).clip(0, 255).astype(np.uint8).copy()
+        img = images[b].cpu().permute(1, 2, 0).numpy()  # (H, W, C)
+        imagenet_mean = np.array([0.485, 0.456, 0.406])
+        imagenet_std = np.array([0.229, 0.224, 0.225])
+
+        img = (img * imagenet_std + imagenet_mean) * 255.0
+        img = np.clip(img, 0, 255).astype(np.uint8).copy()
 
         C = outputs.shape[1]
         for c in range(C):
@@ -89,7 +97,7 @@ def overlay_pred_masks(images, outputs, pred_coords, gt_coords, epoch, total_epo
             px, py = int(pred[c, 0]), int(pred[c, 1])
             gx, gy = int(gt[c, 0]), int(gt[c, 1])
             cv2.circle(overlay, (px, py), 4, (0, 0, 255), -1)  # Red = predicted
-            cv2.circle(overlay, (gx, gy), 4, (0, 255, 0), -1)  # Green = GT
+            cv2.circle(overlay, (gx, gy), 4, (255, 0, 0), -1)  # Green = GT
 
             # Save overlay
             if epoch % 10 == 0 or epoch == total_epoch - 1:
@@ -125,6 +133,14 @@ def plot_training_results(history):
     plt.grid(True)
     plt.savefig("graph/mean_landmark_error.png")
 
+    # Mean landmark error in log scale
+    plt.figure()
+    plt.plot(history["epoch"], np.log(history["mean_landmark_error"]), label="Mean Landmark Error (log)")
+    plt.xlabel("Epoch")
+    plt.ylabel("Log Error (px)")
+    plt.grid(True)
+    plt.savefig("graph/mean_landmark_error_log.png")
+
     # Per-landmark error
     plt.figure()
     for k, v in history["landmark_errors"].items():
@@ -134,6 +150,16 @@ def plot_training_results(history):
     plt.legend()
     plt.grid(True)
     plt.savefig("graph/per_landmark_error.png")
+
+    # Per-landmark error in log scale
+    plt.figure()
+    for k, v in history["landmark_errors"].items():
+        plt.plot(history["epoch"], np.log(v), label=f"Landmark {k}")
+    plt.xlabel("Epoch")
+    plt.ylabel("Log Error (px)")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("graph/per_landmark_error_log.png")
 
     # Mean Dice score
     plt.figure()

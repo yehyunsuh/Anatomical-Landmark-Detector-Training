@@ -78,5 +78,6 @@ if __name__ == "__main__":
     os.makedirs("visualization", exist_ok=True)
     os.makedirs("graph", exist_ok=True)
     os.makedirs("weight", exist_ok=True)
+    os.makedirs("train_results", exist_ok=True)
 
     main(args)

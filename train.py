@@ -6,7 +6,9 @@ Training and evaluation pipeline for anatomical landmark segmentation using U-Ne
 Author: Yehyun Suh
 """
 
+import os
 import torch
+import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
 
@@ -187,3 +189,36 @@ def train(args, model, device):
 
     # Final plot
     plot_training_results(history)
+
+    # Build rows for CSV
+    rows = []
+    for i, epoch in enumerate(history["epoch"]):
+        row = [
+            epoch,
+            history["train_loss"][i],
+            history["val_loss"][i],
+            history["mean_landmark_error"][i],
+        ]
+        # Append per-landmark error
+        for c in range(args.n_landmarks):
+            row.append(history["landmark_errors"][str(c)][i])
+        
+        # Append mean Dice
+        row.append(history["mean_dice"][i])
+        
+        # Append per-landmark Dice
+        for c in range(args.n_landmarks):
+            row.append(history["dice_scores"][str(c)][i])
+
+        rows.append(row)
+
+    # Create column headers
+    columns = ["epoch", "train_loss", "val_loss", "mean_dist"]
+    columns += [f"landmark{c+1}_dist" for c in range(args.n_landmarks)]
+    columns += ["mean_dice"]
+    columns += [f"landmark{c+1}_dice" for c in range(args.n_landmarks)]
+
+    # Create DataFrame and save
+    df = pd.DataFrame(rows, columns=columns)
+    df.to_csv("train_results/training_log.csv", index=False)
+    print("📄 Saved training log to train_results/training_log.csv")

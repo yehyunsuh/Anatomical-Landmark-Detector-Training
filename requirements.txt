@@ -2,3 +2,4 @@ albumentations
 segmentation-models-pytorch
 six
 matplotlib
+pandas

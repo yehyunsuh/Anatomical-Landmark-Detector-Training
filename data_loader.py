@@ -25,20 +25,18 @@ class SegmentationDataset(Dataset):
     where each channel corresponds to a dilated landmark point.
     """
 
-    def __init__(self, csv_path, image_dir, transform=None, n_landmarks=None, dilation_iters=None):
+    def __init__(self, csv_path, image_dir, n_landmarks=None, dilation_iters=None):
         """
         Initializes the dataset by parsing CSV annotations and storing image/landmark paths.
 
         Args:
             csv_path (str): Path to the annotation CSV file.
             image_dir (str): Directory containing input images.
-            transform (albumentations.Compose, optional): Image transform pipeline.
             n_landmarks (int): Number of landmarks per image.
             dilation_iters (int): Number of dilation iterations for landmark masks.
         """
         self.image_dir = image_dir
         self.samples = []
-        self.transform = transform
         self.n_landmarks = n_landmarks
         self.dilation_iters = dilation_iters
 
@@ -69,7 +67,10 @@ class SegmentationDataset(Dataset):
         transform = A.Compose([
             A.PadIfNeeded(min_height=max_side, min_width=max_side),
             A.Resize(512, 512),
-            A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+            A.Normalize(
+                mean=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225),
+            ),
             ToTensorV2()
         ], keypoint_params=A.KeypointParams(format='xy', remove_invisible=False))
 
@@ -106,7 +107,6 @@ def dataloader(args):
     dataset = SegmentationDataset(
         csv_path=os.path.join(args.label_dir, args.train_csv_file),
         image_dir=args.train_image_dir,
-        transform=None,
         n_landmarks=args.n_landmarks,
         dilation_iters=args.dilation_iters,
     )
