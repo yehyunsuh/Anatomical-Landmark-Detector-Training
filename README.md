@@ -81,6 +81,7 @@ python main.py --n_landmarks {number of landmarks}
 | `--dilation_iters`  | Number of dilation iterations for expanding landmark masks    | `65`                        |
 | `--erosion_freq`    | Apply erosion every N epochs to increase training difficulty  | `50`                        |
 | `--erosion_iters`   | Number of erosion iterations applied during erosion phase     | `10`                        |
+| `--experiment_name`   | Name of the experiment                                      | `baseline`                  |
 | `--seed`            | Random seed for reproducibility                               | `42`                        |
 | `--gif`            | Enable GIF creation of training visuals                          |                         |
 

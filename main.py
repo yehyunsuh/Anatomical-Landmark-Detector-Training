@@ -23,6 +23,7 @@ Example:
         --dilation_iters 65 \
         --erosion_freq 50 \
         --erosion_iters 10 \
+        --experiment_name baseline \
         --gif
 """
 
@@ -107,6 +108,10 @@ if __name__ == "__main__":
         "--erosion_iters", type=int, default=10,
         help="Number of iterations for binary erosion"
     )
+    parser.add_argument(
+        "--experiment_name", type=str, default="baseline",
+        help="Name for the experiment directory"
+    )
 
     # Visualization options
     parser.add_argument(
@@ -120,9 +125,9 @@ if __name__ == "__main__":
     customize_seed(args.seed)
 
     # Create necessary directories
-    os.makedirs("visualization", exist_ok=True)
-    os.makedirs("graph", exist_ok=True)
-    os.makedirs("weight", exist_ok=True)
-    os.makedirs("train_results", exist_ok=True)
+    os.makedirs(f"{args.experiment_name}/visualization", exist_ok=True)
+    os.makedirs(f"{args.experiment_name}/graph", exist_ok=True)
+    os.makedirs(f"weight", exist_ok=True)
+    os.makedirs(f"{args.experiment_name}/train_results", exist_ok=True)
 
     main(args)

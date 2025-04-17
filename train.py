@@ -117,15 +117,15 @@ def evaluate_model(args, model, device, val_loader, epoch):
 
             if idx == 0:
                 gt_mask_w_coords_image = overlay_gt_masks(
-                    images, masks, pred_coords, gt_coords,
+                    args, images, masks, pred_coords, gt_coords,
                     epoch, args.epochs, idx
                 )
                 pred_mask_w_coords_image_list = overlay_pred_masks(
-                    images, outputs, pred_coords, gt_coords,
+                    args, images, outputs, pred_coords, gt_coords,
                     epoch, args.epochs, idx
                 )
                 coords_image = overlay_pred_coords(
-                    images, pred_coords, gt_coords,
+                    args, images, pred_coords, gt_coords,
                     epoch, args.epochs, idx
                 )
 
@@ -211,7 +211,7 @@ def train(args, model, device):
 
         if args.gif:
             gt_mask_w_coords_image_list.append(gt_img)
-            pred_mask_w_coords_image_list_list.append(pred_imgs)
+            # pred_mask_w_coords_image_list_list.append(pred_imgs)
             coords_image_list.append(coords_img)
 
         mean_dist = dists.mean().item()
@@ -225,7 +225,7 @@ def train(args, model, device):
 
         if mean_dist < best_mean_error:
             best_mean_error = mean_dist
-            torch.save(model.state_dict(), "weight/best_model.pth")
+            torch.save(model.state_dict(), f"weight/{args.experiment_name}.pth")
             print("✅ Saved new best model!")
 
         history["epoch"].append(epoch + 1)
@@ -242,12 +242,12 @@ def train(args, model, device):
 
     if args.gif:
         create_gif(
-            gt_mask_w_coords_image_list,
+            args, gt_mask_w_coords_image_list,
             pred_mask_w_coords_image_list_list,
             coords_image_list
         )
 
-    plot_training_results(history)
+    plot_training_results(args, history)
 
     # Write training log to CSV
     rows = []
@@ -270,5 +270,5 @@ def train(args, model, device):
     columns += [f"landmark{c+1}_dice" for c in range(args.n_landmarks)]
 
     df = pd.DataFrame(rows, columns=columns)
-    df.to_csv("train_results/training_log.csv", index=False)
-    print("📄 Saved training log to train_results/training_log.csv")
+    df.to_csv(f"{args.experiment_name}/train_results/training_log.csv", index=False)
+    print(f"📄 Saved training log to {args.experiment_name}/train_results/training_log.csv")

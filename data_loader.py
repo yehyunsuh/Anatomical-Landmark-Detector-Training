@@ -85,9 +85,11 @@ class SegmentationDataset(Dataset):
         for k, (x, y) in enumerate(new_landmarks):
             x = int(round(x))
             y = int(round(y))
-            if 0 <= y < H and 0 <= x < W:
-                masks[k, y, x] = 1
-                masks[k] = binary_dilation(masks[k], iterations=self.dilation_iters).astype(np.uint8)
+            
+            if landmarks[k][0] >= 100 and landmarks[k][1] >= 100:
+                if 0 <= y < H and 0 <= x < W:
+                    masks[k, y, x] = 1
+                    masks[k] = binary_dilation(masks[k], iterations=self.dilation_iters).astype(np.uint8)
 
         mask = torch.from_numpy(masks).float()  # Shape: [n_landmarks, H, W]
 
