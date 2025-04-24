@@ -24,14 +24,16 @@ Example:
         --erosion_freq 50 \
         --erosion_iters 10 \
         --experiment_name baseline \
-        --gif
+        --gif \
+        --seed 42 \
+        --invisible_landmarks False
 """
 
 import os
 import argparse
 import torch
 
-from utils import customize_seed
+from utils import customize_seed, str2bool
 from model import UNet
 from train import train
 
@@ -85,6 +87,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_landmarks", type=int, required=True,
         help="Number of landmarks per image"
+    )
+    parser.add_argument(
+        "--invisible_landmarks", type=str2bool, default=False,
+        choices=[True, False],
+        help="Whether there are invisible landmarks in the dataset"
     )
 
     # Training parameters
