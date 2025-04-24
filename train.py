@@ -60,23 +60,24 @@ def train_model(args, model, device, train_loader, optimizer, loss_fn):
 
 def evaluate_model(args, model, device, val_loader, epoch):
     """
-    Evaluates the model on the validation dataset.
+    Evaluates the model on the validation set for one epoch.
 
     Args:
-        args (Namespace): Configuration arguments.
-        model (nn.Module): The trained model.
-        device (str): Device to use ('cuda' or 'cpu').
+        args (Namespace): Parsed command-line arguments.
+        model (nn.Module): The model to evaluate.
+        device (str): 'cuda' or 'cpu'.
         val_loader (DataLoader): Validation data loader.
-        epoch (int): Current epoch index (used for saving visuals).
+        epoch (int): Current epoch number.
 
     Returns:
-        tuple:
-            avg_loss (float): Average validation loss.
-            dists (Tensor): Per-landmark Euclidean distances [N, C].
-            mean_dice (float): Mean Dice score across all landmarks.
-            gt_mask_w_coords_image (ndarray): Image with GT masks and landmarks.
-            pred_mask_w_coords_image_list (list of ndarray): Overlays of prediction masks.
-            coords_image (ndarray): Visual of predicted vs GT coordinates.
+        tuple: (
+            avg_loss (float),
+            dists (Tensor): [N, C] distances between GT and prediction (NaN-masked),
+            mean_dice (float),
+            gt_mask_w_coords_image (ndarray),
+            pred_mask_w_coords_image_list (list[ndarray]),
+            coords_image (ndarray)
+        )
     """
     model.eval()
     total_loss = 0
@@ -129,6 +130,7 @@ def evaluate_model(args, model, device, val_loader, epoch):
                     epoch, args.epochs, idx
                 )
 
+            # Dice score (no masking; invisible GT should give Dice=1 if prediction is empty)
             pred_bin = (probs > 0.5).float()
             intersection = (pred_bin * masks).sum(dim=(2, 3))
             union = pred_bin.sum(dim=(2, 3)) + masks.sum(dim=(2, 3))
@@ -136,14 +138,19 @@ def evaluate_model(args, model, device, val_loader, epoch):
             all_dice.append(dice)
 
     avg_loss = total_loss / len(val_loader)
-    all_pred_coords = torch.cat(all_pred_coords, dim=0)
+    all_pred_coords = torch.cat(all_pred_coords, dim=0)  # [N, C, 2]
     all_gt_coords = torch.cat(all_gt_coords, dim=0)
-    all_dice = torch.cat(all_dice, dim=0)
+    all_dice = torch.cat(all_dice, dim=0)  # [N, C]
 
-    dists = torch.norm(all_pred_coords - all_gt_coords, dim=2)
-    mean_dice = all_dice.mean().item()
+    # Mask (0, 0) GT for distance calculation only
+    diff = all_pred_coords - all_gt_coords
+    dists = torch.norm(diff, dim=2)
+    mask = (all_gt_coords != 0).any(dim=2)  # [B, C]
+    dists[~mask] = float("nan")  # Don't include in distance average
 
-    evaluate_model.last_dice = all_dice  # store for access in train loop
+    mean_dice = all_dice.mean().item()  # No NaN masking here
+
+    evaluate_model.last_dice = all_dice  # Store for per-landmark stats
 
     return (
         avg_loss, dists, mean_dice,
@@ -214,7 +221,7 @@ def train(args, model, device):
             # pred_mask_w_coords_image_list_list.append(pred_imgs)
             coords_image_list.append(coords_img)
 
-        mean_dist = dists.mean().item()
+        mean_dist = torch.nanmean(dists).item()
 
         print(
             f"Train Loss: {train_loss:.4f} | "
@@ -235,7 +242,7 @@ def train(args, model, device):
         history["mean_dice"].append(mean_dice)
 
         for c in range(dists.shape[1]):
-            history["landmark_errors"][str(c)].append(dists[:, c].mean().item())
+            history["landmark_errors"][str(c)].append(torch.nanmean(dists[:, c]).item())
             history["dice_scores"][str(c)].append(
                 evaluate_model.last_dice[:, c].mean().item()
             )

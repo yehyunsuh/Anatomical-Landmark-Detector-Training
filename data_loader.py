@@ -21,11 +21,14 @@ from torch.utils.data import Dataset, DataLoader, random_split
 class SegmentationDataset(Dataset):
     """
     Custom dataset for anatomical landmark segmentation.
-    Each sample includes an RGB image and a multi-channel binary mask,
-    where each channel corresponds to a dilated landmark point.
+
+    Each sample includes:
+    - An RGB image
+    - A multi-channel binary mask where each channel corresponds to a dilated landmark point
+    - Landmark coordinates (optionally hiding invisible landmarks)
     """
 
-    def __init__(self, csv_path, image_dir, n_landmarks=None, dilation_iters=None):
+    def __init__(self, csv_path, image_dir, n_landmarks=None, dilation_iters=None, invisible_landmarks=False):
         """
         Initializes the dataset by parsing CSV annotations and storing image/landmark paths.
 
@@ -33,12 +36,14 @@ class SegmentationDataset(Dataset):
             csv_path (str): Path to the annotation CSV file.
             image_dir (str): Directory containing input images.
             n_landmarks (int): Number of landmarks per image.
-            dilation_iters (int): Number of dilation iterations for landmark masks.
+            dilation_iters (int): Number of binary dilation iterations for landmark masks.
+            invisible_landmarks (bool): Whether to treat (x < box, y < box) landmarks as invisible (set to (0, 0)).
         """
         self.image_dir = image_dir
         self.samples = []
         self.n_landmarks = n_landmarks
         self.dilation_iters = dilation_iters
+        self.invisible_landmarks = invisible_landmarks
 
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
@@ -62,6 +67,11 @@ class SegmentationDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         h, w = image.shape[:2]
         max_side = max(h, w)
+        
+        if max_side > 1000:
+            invisible_landmark_check_box = 100
+        else:
+            invisible_landmark_check_box = 50
 
         # Apply resizing and normalization
         transform = A.Compose([
@@ -85,12 +95,19 @@ class SegmentationDataset(Dataset):
         for k, (x, y) in enumerate(new_landmarks):
             x = int(round(x))
             y = int(round(y))
-            
-            if landmarks[k][0] >= 100 and landmarks[k][1] >= 100:
+
+            if self.invisible_landmarks:
+                if landmarks[k][0] < invisible_landmark_check_box and landmarks[k][1] < invisible_landmark_check_box:
+                    new_landmarks[k] = (0, 0)  # ← this line sets the new landmark to (0, 0)
+                else:
+                    if 0 <= y < H and 0 <= x < W:
+                        masks[k, y, x] = 1
+                        masks[k] = binary_dilation(masks[k], iterations=self.dilation_iters).astype(np.uint8)
+            else:
                 if 0 <= y < H and 0 <= x < W:
                     masks[k, y, x] = 1
                     masks[k] = binary_dilation(masks[k], iterations=self.dilation_iters).astype(np.uint8)
-
+        
         mask = torch.from_numpy(masks).float()  # Shape: [n_landmarks, H, W]
 
         return image, mask, image_name, new_landmarks
@@ -111,6 +128,7 @@ def dataloader(args):
         image_dir=args.train_image_dir,
         n_landmarks=args.n_landmarks,
         dilation_iters=args.dilation_iters,
+        invisible_landmarks=args.invisible_landmarks
     )
 
     # Train-validation split
