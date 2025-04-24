@@ -40,9 +40,10 @@ We recommend using a virtual environment:
 
 ```bash
 git clone https://github.com/yehyunsuh/Anatomical-Landmark-Detector-Training.git
-cd Anatomical-Landmark-Annotator-Training
-conda create -n annotator python=3.10 -y
-conda activate annotator
+cd Anatomical-Landmark-Detector-Training
+conda create -n detector python=3.10 -y
+conda activate detector
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip3 install -r requirements.txt
 ```
 

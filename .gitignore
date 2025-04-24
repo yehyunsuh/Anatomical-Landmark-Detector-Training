@@ -6,3 +6,5 @@ weight
 
 __pycache__
 *.out
+*.sh
+*tmp*
