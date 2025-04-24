@@ -50,10 +50,12 @@ def overlay_gt_masks(args, images, masks, pred_coords, gt_coords, epoch, total_e
         overlay = cv2.addWeighted(img, 0.7, gt_mask_rgb, 0.3, 0)
 
         for c in range(pred.shape[0]):
-            px, py = int(pred[c, 0]), int(pred[c, 1])
             gx, gy = int(gt[c, 0]), int(gt[c, 1])
-            cv2.circle(overlay, (px, py), 4, (0, 0, 255), -1)
+            if gx == 0 and gy == 0:
+                continue  # Skip invisible GT landmarks (and predicted points at those channels)
+            px, py = int(pred[c, 0]), int(pred[c, 1])
             cv2.circle(overlay, (gx, gy), 4, (255, 0, 0), -1)
+            cv2.circle(overlay, (px, py), 4, (0, 0, 255), -1)
 
         if epoch % 10 == 0 or epoch == total_epoch - 1:
             os.makedirs(f"{args.experiment_name}/visualization/Epoch{epoch}", exist_ok=True)
@@ -100,11 +102,13 @@ def overlay_pred_masks(args, images, outputs, pred_coords, gt_coords, epoch, tot
             mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
             overlay = cv2.addWeighted(img, 0.7, mask_rgb, 0.3, 0)
-
-            px, py = int(pred[c, 0]), int(pred[c, 1])
+            
             gx, gy = int(gt[c, 0]), int(gt[c, 1])
-            cv2.circle(overlay, (px, py), 4, (0, 0, 255), -1)
+            if gx == 0 and gy == 0:
+                continue  # Skip invisible GT landmarks (and predicted points at those channels)
+            px, py = int(pred[c, 0]), int(pred[c, 1])
             cv2.circle(overlay, (gx, gy), 4, (255, 0, 0), -1)
+            cv2.circle(overlay, (px, py), 4, (0, 0, 255), -1)
 
             if epoch % 10 == 0 or epoch == total_epoch - 1:
                 os.makedirs(f"{args.experiment_name}/visualization/Epoch{epoch}", exist_ok=True)
@@ -144,10 +148,12 @@ def overlay_pred_coords(args, images, pred_coords, gt_coords, epoch, total_epoch
         img = np.clip(img, 0, 255).astype(np.uint8).copy()
 
         for c in range(pred.shape[0]):
-            px, py = int(pred[c, 0]), int(pred[c, 1])
             gx, gy = int(gt[c, 0]), int(gt[c, 1])
-            cv2.circle(img, (px, py), 4, (0, 0, 255), -1)
+            if gx == 0 and gy == 0:
+                continue  # Skip invisible GT landmarks (and predicted points at those channels)
+            px, py = int(pred[c, 0]), int(pred[c, 1])
             cv2.circle(img, (gx, gy), 4, (255, 0, 0), -1)
+            cv2.circle(img, (px, py), 4, (0, 0, 255), -1)
 
         if epoch % 10 == 0 or epoch == total_epoch - 1:
             os.makedirs(f"{args.experiment_name}/visualization/Epoch{epoch}", exist_ok=True)
@@ -170,6 +176,9 @@ def create_gif(args, gt_mask_w_coords_image_list, pred_mask_w_coords_image_list_
         coords_image_list (list): Coordinate-only overlays.
     """
     def convert_to_numpy(image_list):
+        """
+        Converts a list of tensors or normalized images to uint8 numpy arrays (RGB).
+        """
         converted = []
         for img in image_list:
             if isinstance(img, torch.Tensor):
@@ -178,6 +187,8 @@ def create_gif(args, gt_mask_w_coords_image_list, pred_mask_w_coords_image_list_
                 img = img.transpose(1, 2, 0)
             if img.max() <= 1.0:
                 img = (img * 255).astype(np.uint8)
+            if img.shape[2] == 3:  # Only if it's a color image
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
             converted.append(img)
         return converted
 
